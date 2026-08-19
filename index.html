@@ -5,49 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
     <title>Estudio de Arte</title>
 
     <style>
-        /* TEMA GRIS NEUTRO (Base sólida para pintar) */
-        :root {
-            --bg-color: #2E2E2E; --panel-color: #3A3A3A; --text-color: #E0E0E0; --text-muted: #9CA3AF; --accent-color: #60A5FA; --border-color: rgba(255, 255, 255, 0.1);
-        }
-        .theme-warm {
-            --bg-color: #2A2624; --panel-color: #36302D; --text-color: #E7E5E4; --text-muted: #A8A29E; --accent-color: #F59E0B; --border-color: rgba(255, 255, 255, 0.08);
-        }
-        .theme-daylight {
-            --bg-color: #E5E7EB; --panel-color: #F3F4F6; --text-color: #1F2937; --text-muted: #4B5563; --accent-color: #2563EB; --border-color: rgba(0, 0, 0, 0.1);
-        }
-
-        body {
-            overscroll-behavior: none;
-            touch-action: pan-y; /* Permite scroll vertical en la galería */
-            -webkit-user-select: none;
-            user-select: none;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        
-        .safe-pt { padding-top: env(safe-area-inset-top, 20px); }
-        .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); }
-        .safe-pl { padding-left: env(safe-area-inset-left, 20px); }
-        .safe-pr { padding-right: env(safe-area-inset-right, 20px); }
+        :root { --bg-color: #2E2E2E; --panel-color: #3A3A3A; --text-color: #E0E0E0; --text-muted: #9CA3AF; --accent-color: #60A5FA; --border-color: rgba(255, 255, 255, 0.1); }
+        body { overscroll-behavior: none; touch-action: pan-y; -webkit-user-select: none; user-select: none; background-color: var(--bg-color); color: var(--text-color); }
+        .safe-pt { padding-top: env(safe-area-inset-top, 20px); } .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); } .safe-pl { padding-left: env(safe-area-inset-left, 20px); }
         ::-webkit-scrollbar { display: none; }
+        
+        /* Ocultar elementos inactivos de las pestañas */
+        .workspace-hidden { display: none !important; }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'studio-bg': 'var(--bg-color)', 'studio-panel': 'var(--panel-color)', 'studio-text': 'var(--text-color)', 'studio-muted': 'var(--text-muted)', 'studio-accent': 'var(--accent-color)', 'studio-border': 'var(--border-color)'
-                    }
-                }
-            }
-        }
+        tailwind.config = { theme: { extend: { colors: { 'studio-bg': 'var(--bg-color)', 'studio-panel': 'var(--panel-color)', 'studio-text': 'var(--text-color)', 'studio-muted': 'var(--text-muted)', 'studio-accent': 'var(--accent-color)', 'studio-border': 'var(--border-color)' } } } }
     </script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
@@ -55,317 +27,246 @@
 
 <body id="app-container" class="h-screen w-screen overflow-hidden flex font-sans">
 
-    <!-- BARRA DE NAVEGACIÓN -->
-    <nav class="bg-studio-panel w-20 flex flex-col items-center py-6 safe-pt safe-pb shadow-lg z-20">
-        <button class="mb-10 p-3 rounded-2xl bg-studio-bg shadow-inner text-studio-accent transition-transform active:scale-95" onclick="goHome()">
+    <!-- BARRA LATERAL -->
+    <nav class="bg-studio-panel w-20 flex flex-col items-center py-6 safe-pt safe-pb shadow-xl z-20">
+        <button class="mb-10 p-3 rounded-2xl bg-studio-bg shadow-inner text-studio-accent">
             <i class="ph ph-paint-brush-broad text-2xl"></i>
         </button>
-        <div class="flex flex-col gap-6 w-full items-center">
-            <button class="p-3 rounded-xl bg-studio-bg/50 transition-colors shadow-sm" title="Inicio" onclick="goHome()">
-                <i class="ph ph-folders text-2xl text-studio-accent"></i>
+        
+        <!-- Pestañas de Espacios de Trabajo -->
+        <div class="flex flex-col gap-4 w-full items-center">
+            <button onclick="switchWorkspace('personal')" id="tab-personal" class="p-3 rounded-xl bg-studio-bg/50 text-studio-accent transition-colors" title="Proyectos Personales">
+                <i class="ph ph-user text-2xl"></i>
+            </button>
+            <button onclick="switchWorkspace('work')" id="tab-work" class="p-3 rounded-xl hover:bg-studio-bg/30 text-studio-muted transition-colors" title="Trabajo Pagado / Comisiones">
+                <i class="ph ph-briefcase text-2xl"></i>
+            </button>
+            <button onclick="switchWorkspace('ideas')" id="tab-ideas" class="p-3 rounded-xl hover:bg-studio-bg/30 text-studio-muted transition-colors" title="Caja de Ideas">
+                <i class="ph ph-lightbulb text-2xl"></i>
             </button>
         </div>
+
         <div class="mt-auto flex flex-col gap-4">
-            <button onclick="openSettings()" class="p-3 rounded-xl hover:bg-studio-bg/30 transition-colors" title="Preferencias">
-                <i class="ph ph-gear text-2xl text-studio-muted"></i>
+            <!-- Botón de Idea Rápida (Global) -->
+            <button onclick="openIdeaModal()" class="p-3 rounded-xl bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/40 transition-colors shadow-lg" title="Captura Rápida">
+                <i class="ph ph-lightning text-2xl"></i>
             </button>
         </div>
     </nav>
 
     <!-- ÁREA PRINCIPAL -->
-    <main class="flex-1 relative h-full safe-pt safe-pb overflow-y-auto px-10" id="main-view">
+    <main class="flex-1 relative h-full safe-pt safe-pb overflow-y-auto px-10">
         
-        <!-- ============================================== -->
-        <!-- VISTA 1: GESTOR DE PROYECTOS                   -->
-        <!-- ============================================== -->
-        <div id="view-projects" class="py-10 h-full flex flex-col">
-            <header class="mb-8">
-                <h1 class="text-4xl font-light mb-2">Proyectos</h1>
-                <p class="text-studio-muted text-sm">Almacenamiento local activo.</p>
-            </header>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="projects-grid"></div>
-        </div>
-
-        <!-- ============================================== -->
-        <!-- VISTA 2: INTERIOR DEL PROYECTO (REFERENCIAS)   -->
-        <!-- ============================================== -->
-        <!-- Inicia oculta por defecto ('hidden') -->
-        <div id="view-project-detail" class="hidden py-10 h-full flex flex-col">
-            <header class="mb-8 flex justify-between items-end border-b border-studio-border pb-6">
-                <div class="flex items-center gap-4">
-                    <button onclick="goHome()" class="p-3 bg-studio-panel rounded-xl hover:bg-studio-bg transition-colors shadow-sm">
-                        <i class="ph ph-caret-left text-xl"></i>
-                    </button>
-                    <div>
-                        <span id="detail-category" class="text-xs font-bold uppercase tracking-wider text-studio-accent mb-1 block">Técnica</span>
-                        <h1 id="detail-title" class="text-4xl font-light">Título</h1>
-                    </div>
-                </div>
-                
-                <div class="flex gap-4">
-                    <!-- Botón oculto real para subir archivos -->
-                    <input type="file" id="image-upload-input" accept="image/*" multiple class="hidden" onchange="handleImageUpload(event)">
-                    
-                    <!-- Botón visible de UI -->
-                    <button onclick="document.getElementById('image-upload-input').click()" class="bg-studio-panel text-studio-text flex items-center gap-2 px-6 py-3 rounded-xl hover:bg-studio-bg border border-studio-border transition-colors shadow-sm">
-                        <i class="ph ph-image-square text-xl"></i>
-                        Añadir Referencias
-                    </button>
-                    
-                    <button onclick="alert('Pronto conectaremos esto con el Módulo 3 (Lienzo de dibujo)')" class="bg-studio-accent text-white flex items-center gap-2 px-6 py-3 rounded-xl font-bold hover:bg-blue-500 transition-colors shadow-lg active:scale-95">
-                        <i class="ph ph-scribble-loop text-xl"></i>
-                        Abrir Lienzo
-                    </button>
-                </div>
-            </header>
-
-            <!-- Galería de Referencias (Layout Tipo Pinterest / Masonry) -->
-            <!-- 'columns-2 md:columns-3 lg:columns-4' crea columnas que fluyen hacia abajo -->
-            <div id="references-masonry" class="columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6 pb-20">
-                <!-- Las imágenes se inyectarán aquí -->
+        <header class="py-8 border-b border-studio-border mb-8 flex justify-between items-end">
+            <div>
+                <h1 id="workspace-title" class="text-4xl font-light mb-2">Proyectos Personales</h1>
+                <p id="workspace-subtitle" class="text-studio-muted text-sm">Tu espacio de exploración libre.</p>
             </div>
+            
+            <!-- Buscador visual de temas -->
+            <div class="flex items-center bg-studio-panel rounded-full px-4 py-2 border border-studio-border">
+                <i class="ph ph-magnifying-glass text-studio-muted mr-2"></i>
+                <input type="text" placeholder="Buscar por tema (#óleo, #rojo)..." class="bg-transparent border-none focus:outline-none text-sm w-48 text-studio-text" onkeyup="filterByTag(this.value)">
+            </div>
+        </header>
+
+        <!-- Cuadrícula de Proyectos / Ideas -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pb-20" id="projects-grid">
+            <!-- Contenido dinámico -->
         </div>
 
     </main>
 
-    <!-- MODAL: NUEVO PROYECTO -->
-    <div id="new-project-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center">
-        <!-- (Contenido igual que antes, mantenido para no romper la app) -->
-        <div class="bg-studio-panel w-[500px] rounded-3xl p-8 shadow-2xl border border-studio-border">
+    <!-- MODAL: NUEVO PROYECTO COMPLETO -->
+    <div id="new-project-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center">
+        <div class="bg-studio-panel w-[550px] rounded-3xl p-8 shadow-2xl border border-studio-border">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-light">Nueva Obra</h2>
-                <button onclick="closeModal('new-project-modal')" class="text-studio-muted hover:text-studio-text transition-colors"><i class="ph ph-x text-2xl"></i></button>
+                <h2 class="text-2xl font-light">Nuevo Proyecto</h2>
+                <button onclick="closeModal('new-project-modal')" class="text-studio-muted hover:text-white"><i class="ph ph-x text-2xl"></i></button>
             </div>
-            <form id="new-project-form" onsubmit="saveProject(event)" class="flex flex-col gap-5">
-                <div><label class="block text-sm text-studio-muted mb-2">Título</label><input type="text" id="proj-title" required class="w-full bg-studio-bg border border-studio-border rounded-xl p-4 text-studio-text focus:outline-none focus:border-studio-accent"></div>
+            <form onsubmit="saveProject(event)" class="flex flex-col gap-5">
                 <div>
-                    <label class="block text-sm text-studio-muted mb-2">Técnica</label>
-                    <select id="proj-category" class="w-full bg-studio-bg border border-studio-border rounded-xl p-4 text-studio-text focus:outline-none focus:border-studio-accent appearance-none">
-                        <option value="Óleo">Óleo</option><option value="Acrílico">Acrílico</option><option value="Acuarela">Acuarela</option><option value="Grafito / Carbón">Grafito / Carbón</option><option value="Escultura">Escultura</option><option value="Técnica Mixta">Técnica Mixta</option>
-                    </select>
+                    <label class="block text-sm text-studio-muted mb-2">Título</label>
+                    <input type="text" id="proj-title" required class="w-full bg-studio-bg border border-studio-border rounded-xl p-4 focus:border-studio-accent outline-none">
                 </div>
-                <button type="submit" class="mt-4 bg-studio-accent text-white font-bold rounded-xl p-4">Crear Proyecto</button>
+                <div>
+                    <!-- El nuevo sistema de Etiquetas Abiertas -->
+                    <label class="block text-sm text-studio-muted mb-2">Temas y Categorías (Etiquetas)</label>
+                    <input type="text" id="proj-tags" placeholder="Ej: #óleo, #retrato, #clienteX" class="w-full bg-studio-bg border border-studio-border rounded-xl p-4 focus:border-studio-accent outline-none">
+                    <p class="text-xs text-studio-muted mt-2">Separa los temas por comas. El sistema agrupará obras similares.</p>
+                </div>
+                <button type="submit" class="mt-4 bg-studio-accent text-white font-bold rounded-xl p-4 active:scale-95 transition-transform">Crear en este Espacio</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL: PREFERENCIAS (Simplificado sin Frutiger) -->
-    <div id="settings-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center">
-        <div class="bg-studio-panel w-[500px] rounded-3xl p-8 shadow-2xl border border-studio-border">
-            <div class="flex justify-between items-center mb-8">
-                <h2 class="text-2xl font-light">Preferencias del Estudio</h2>
-                <button onclick="closeModal('settings-modal')" class="text-studio-muted hover:text-studio-text"><i class="ph ph-x text-2xl"></i></button>
-            </div>
-            <div class="flex flex-col gap-6">
-                <div>
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-studio-muted mb-3">Ergonomía</h3>
-                    <div class="flex gap-4">
-                        <label class="flex-1 flex items-center justify-center gap-2 p-4 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent"><input type="radio" name="ergonomics" value="right" class="accent-studio-accent" checked><span>Diestro</span></label>
-                        <label class="flex-1 flex items-center justify-center gap-2 p-4 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent"><input type="radio" name="ergonomics" value="left" class="accent-studio-accent"><span>Zurdo</span></label>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-studio-muted mb-3">Entorno Visual</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <label class="flex items-center gap-2 p-3 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent"><input type="radio" name="theme" value="neutral" class="accent-studio-accent" checked><span class="text-sm font-medium">Gris Neutro</span></label>
-                        <label class="flex items-center gap-2 p-3 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent"><input type="radio" name="theme" value="daylight" class="accent-studio-accent"><span class="text-sm font-medium">Luz de Día</span></label>
-                        <label class="flex items-center gap-2 p-3 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent"><input type="radio" name="theme" value="warm" class="accent-studio-accent"><span class="text-sm font-medium">Luz Cálida</span></label>
-                    </div>
-                </div>
-                <button onclick="applyAndSaveSettings()" class="mt-4 bg-studio-accent text-white font-bold rounded-xl p-4">Aplicar Cambios</button>
+    <!-- MODAL: IDEA RÁPIDA (Relámpago) -->
+    <div id="quick-idea-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-start justify-center pt-32">
+        <div class="bg-studio-panel w-[500px] rounded-3xl p-6 shadow-2xl border border-yellow-500/30">
+            <h2 class="text-xl text-yellow-500 flex items-center gap-2 mb-4"><i class="ph ph-lightning"></i> Captura de Idea</h2>
+            <textarea id="idea-text" rows="3" placeholder="Escribe tu idea fugaz aquí..." class="w-full bg-studio-bg border border-studio-border rounded-xl p-4 focus:border-yellow-500 outline-none resize-none text-lg"></textarea>
+            <div class="flex justify-end gap-3 mt-4">
+                <button onclick="closeModal('quick-idea-modal')" class="px-4 py-2 text-studio-muted">Cancelar</button>
+                <button onclick="saveIdea()" class="px-6 py-2 bg-yellow-500 text-black font-bold rounded-xl active:scale-95">Archivar</button>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL -->
     <script>
-        // 1. BASE DE DATOS
+        // ==========================================
+        // 1. ACTUALIZACIÓN DE BASE DE DATOS (v2)
+        // ==========================================
         const db = new Dexie("StudioArtDB");
-        db.version(1).stores({
-            projects: '++id, title, category, dateCreated',
-            references: '++id, projectId, imageBlob', // Aquí guardaremos los archivos de imagen
-            sketches: '++id, projectId, canvasData'
+        
+        // Hemos subido la versión a 2 para modificar las tablas sin que se rompa.
+        db.version(2).stores({
+            // Añadido 'workspace' y '*tags' (el asterisco permite buscar dentro de listas)
+            projects: '++id, title, workspace, *tags, type, dateCreated', 
+            // Añadido x, y, width, height, zIndex para preparar el terreno de Milanote
+            references: '++id, projectId, type, imageBlob, textContent, x, y, width, height, zIndex' 
         });
 
-        // VARIABLE GLOBAL DE ESTADO
-        let currentProjectId = null;
+        let currentWorkspace = 'personal';
 
-        // INICIALIZACIÓN
-        window.addEventListener('DOMContentLoaded', () => {
-            loadPreferences();
-            loadProjects();
-        });
+        window.addEventListener('DOMContentLoaded', () => loadWorkspace(currentWorkspace));
 
-        // ==============================================
-        // LÓGICA DE NAVEGACIÓN ENTRE VISTAS
-        // ==============================================
-        function goHome() {
-            currentProjectId = null;
-            document.getElementById('view-project-detail').classList.add('hidden');
-            document.getElementById('view-projects').classList.remove('hidden');
-            loadProjects();
-        }
-
-        async function openProject(id) {
-            currentProjectId = id;
-            const project = await db.projects.get(id);
+        // ==========================================
+        // 2. LÓGICA DE ESPACIOS DE TRABAJO
+        // ==========================================
+        function switchWorkspace(workspaceId) {
+            currentWorkspace = workspaceId;
             
-            // Actualizar la cabecera con el título de la obra
-            document.getElementById('detail-title').innerText = project.title;
-            document.getElementById('detail-category').innerText = project.category;
-
-            // Cambiar de pantalla
-            document.getElementById('view-projects').classList.add('hidden');
-            document.getElementById('view-project-detail').classList.remove('hidden');
-
-            // Cargar las imágenes
-            loadReferences();
-        }
-
-        // ==============================================
-        // LÓGICA DEL TABLERO DE REFERENCIAS
-        // ==============================================
-        async function handleImageUpload(event) {
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
-
-            // Iteramos sobre todas las imágenes seleccionadas
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                
-                // Guardamos el archivo original directamente en Dexie
-                await db.references.add({
-                    projectId: currentProjectId,
-                    imageBlob: file 
-                });
-            }
-
-            // Limpiamos el input para permitir volver a subir la misma foto si se borró
-            event.target.value = '';
-            
-            // Recargamos el tablero
-            loadReferences();
-        }
-
-        async function loadReferences() {
-            // Buscamos solo las referencias de la obra actual
-            const refs = await db.references.where('projectId').equals(currentProjectId).toArray();
-            const container = document.getElementById('references-masonry');
-            
-            container.innerHTML = '';
-
-            if (refs.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full flex flex-col items-center justify-center py-20 text-studio-muted">
-                        <i class="ph ph-image-square text-6xl mb-4 opacity-50"></i>
-                        <p class="text-lg">No hay referencias aún. Sube algunas imágenes para empezar.</p>
-                    </div>`;
-                return;
-            }
-
-            // Dibujamos las imágenes
-            refs.forEach(ref => {
-                // Creamos una URL temporal a partir del archivo guardado en base de datos
-                const imageUrl = URL.createObjectURL(ref.imageBlob);
-                
-                // 'break-inside-avoid' evita que la imagen se parta a la mitad al saltar de columna
-                container.innerHTML += `
-                    <div class="relative group break-inside-avoid mb-6 rounded-2xl overflow-hidden border border-studio-border bg-studio-panel shadow-lg">
-                        <img src="${imageUrl}" class="w-full object-cover" alt="Referencia">
-                        
-                        <!-- Capa superpuesta al pasar el cursor/lápiz -->
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-4">
-                            <button onclick="deleteReference(${ref.id})" class="p-3 bg-red-500/90 text-white rounded-xl hover:bg-red-500 shadow-md backdrop-blur-sm transition-transform active:scale-95">
-                                <i class="ph ph-trash text-xl"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
+            // UI: Cambiar estilos de pestañas
+            ['personal', 'work', 'ideas'].forEach(id => {
+                const btn = document.getElementById(`tab-${id}`);
+                if(id === workspaceId) {
+                    btn.classList.add('bg-studio-bg/50', 'text-studio-accent');
+                    btn.classList.remove('text-studio-muted');
+                } else {
+                    btn.classList.remove('bg-studio-bg/50', 'text-studio-accent');
+                    btn.classList.add('text-studio-muted');
+                }
             });
+
+            // UI: Cambiar textos de cabecera
+            const title = document.getElementById('workspace-title');
+            const sub = document.getElementById('workspace-subtitle');
+            
+            if(workspaceId === 'personal') { title.innerText = 'Proyectos Personales'; sub.innerText = 'Tu espacio de exploración libre.'; }
+            if(workspaceId === 'work') { title.innerText = 'Trabajo Pagado'; sub.innerText = 'Comisiones y proyectos profesionales.'; }
+            if(workspaceId === 'ideas') { title.innerText = 'Caja de Ideas'; sub.innerText = 'Conceptos archivados para el futuro.'; }
+
+            loadWorkspace(workspaceId);
         }
 
-        async function deleteReference(refId) {
-            if(confirm("¿Quitar esta imagen del tablero?")) {
-                await db.references.delete(refId);
-                loadReferences();
+        // ==========================================
+        // 3. CARGA Y BUSCADOR DE SIMILITUDES
+        // ==========================================
+        async function loadWorkspace(workspaceId, searchQuery = "") {
+            let items;
+            
+            // Buscar por coincidencia de texto en etiquetas
+            if (searchQuery.trim() !== "") {
+                const query = searchQuery.toLowerCase().trim();
+                // Filtra en el espacio actual buscando la etiqueta
+                items = await db.projects.where('workspace').equals(workspaceId).toArray();
+                items = items.filter(item => 
+                    item.tags.some(tag => tag.toLowerCase().includes(query)) || 
+                    item.title.toLowerCase().includes(query)
+                );
+            } else {
+                items = await db.projects.where('workspace').equals(workspaceId).toArray();
             }
-        }
 
-        // ==============================================
-        // LÓGICA DE PROYECTOS Y PREFERENCIAS (Resumida)
-        // ==============================================
-        function loadPreferences() {
-            const savedTheme = localStorage.getItem('studioTheme') || 'neutral';
-            const isLeftHanded = localStorage.getItem('isLeftHanded') === 'true';
-            applyThemeVisuals(savedTheme, isLeftHanded);
-            document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
-            document.querySelector(`input[name="ergonomics"][value="${isLeftHanded ? 'left' : 'right'}"]`).checked = true;
-        }
-
-        function applyThemeVisuals(theme, isLeftHanded) {
-            document.documentElement.className = '';
-            if (theme !== 'neutral') document.documentElement.classList.add(`theme-${theme}`);
-            const appContainer = document.getElementById('app-container');
-            if (isLeftHanded) { appContainer.classList.add('flex-row-reverse'); document.querySelector('nav').classList.replace('safe-pl', 'safe-pr'); } 
-            else { appContainer.classList.remove('flex-row-reverse'); document.querySelector('nav').classList.replace('safe-pr', 'safe-pl'); }
-        }
-
-        function applyAndSaveSettings() {
-            const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
-            const isLeftHanded = document.querySelector('input[name="ergonomics"]:checked').value === 'left';
-            localStorage.setItem('studioTheme', selectedTheme);
-            localStorage.setItem('isLeftHanded', isLeftHanded);
-            applyThemeVisuals(selectedTheme, isLeftHanded);
-            closeModal('settings-modal');
-        }
-
-        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.remove('hidden');
-            if(modalId === 'new-project-modal') document.getElementById('proj-title').focus();
-        }
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-            if(modalId === 'new-project-modal') document.getElementById('new-project-form').reset();
-        }
-
-        async function saveProject(event) {
-            event.preventDefault();
-            await db.projects.add({ title: document.getElementById('proj-title').value, category: document.getElementById('proj-category').value, dateCreated: new Date().toISOString() });
-            closeModal('new-project-modal');
-            loadProjects();
-        }
-
-        async function loadProjects() {
-            const projects = await db.projects.toArray();
             const grid = document.getElementById('projects-grid');
-            grid.innerHTML = `
+            
+            // Botón de nuevo (solo si no estamos en 'ideas')
+            grid.innerHTML = workspaceId !== 'ideas' ? `
                 <button class="bg-studio-panel border-2 border-dashed border-studio-border rounded-3xl h-56 flex flex-col items-center justify-center hover:border-studio-accent transition-all group" onclick="openModal('new-project-modal')">
-                    <div class="bg-studio-bg p-4 rounded-full mb-4 shadow-inner transition-colors"><i class="ph ph-plus text-3xl text-studio-muted group-hover:text-studio-accent"></i></div>
+                    <div class="bg-studio-bg p-4 rounded-full mb-4 shadow-inner text-studio-muted group-hover:text-studio-accent"><i class="ph ph-plus text-3xl"></i></div>
                     <span class="text-studio-muted font-medium group-hover:text-studio-text">Nuevo Proyecto</span>
                 </button>
-            `;
-            projects.forEach(project => {
-                const date = new Date(project.dateCreated).toLocaleDateString('es-ES');
+            ` : '';
+
+            items.forEach(item => {
+                const date = new Date(item.dateCreated).toLocaleDateString('es-ES');
+                // Formatear etiquetas como pastillas visuales
+                const tagsHtml = item.tags.slice(0,3).map(tag => `<span class="text-xs bg-studio-bg text-studio-muted px-2 py-1 rounded-md mr-1 border border-studio-border">${tag}</span>`).join('');
+                
                 grid.innerHTML += `
-                    <div class="bg-studio-panel border border-studio-border rounded-3xl h-56 p-6 flex flex-col hover:ring-2 ring-studio-accent cursor-pointer transition-all shadow-lg group" onclick="openProject(${project.id})">
-                        <div class="flex justify-between items-start mb-auto">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-white bg-studio-accent px-3 py-1 rounded-full shadow-sm">${project.category}</span>
-                            <button class="text-studio-muted opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" onclick="deleteProject(event, ${project.id})"><i class="ph ph-trash text-xl"></i></button>
+                    <div class="bg-studio-panel border border-studio-border rounded-3xl h-56 p-6 flex flex-col hover:ring-2 ring-studio-accent cursor-pointer transition-all shadow-lg group relative">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex flex-wrap gap-1">${tagsHtml}</div>
+                            <button class="text-studio-muted opacity-0 group-hover:opacity-100 hover:text-red-400" onclick="deleteItem(event, ${item.id})"><i class="ph ph-trash text-xl"></i></button>
                         </div>
-                        <div><h2 class="text-xl font-medium text-studio-text mb-1 truncate">${project.title}</h2><p class="text-studio-muted text-sm">Creado: ${date}</p></div>
+                        <div class="mt-auto">
+                            <h2 class="text-xl font-medium text-studio-text mb-1 line-clamp-2">${item.title}</h2>
+                            <p class="text-studio-muted text-xs">Creado: ${date}</p>
+                        </div>
                     </div>
                 `;
             });
         }
 
-        async function deleteProject(event, id) {
+        function filterByTag(query) {
+            loadWorkspace(currentWorkspace, query);
+        }
+
+        // ==========================================
+        // 4. GUARDADO DE PROYECTOS Y NOTAS RÁPIDAS
+        // ==========================================
+        async function saveProject(event) {
+            event.preventDefault();
+            // Convertir el texto "#óleo, retrato" en un Array ["#óleo", "retrato"] limpiando espacios
+            const rawTags = document.getElementById('proj-tags').value;
+            const tagArray = rawTags.split(',').map(tag => tag.trim()).filter(tag => tag !== "");
+
+            await db.projects.add({ 
+                title: document.getElementById('proj-title').value, 
+                workspace: currentWorkspace,
+                tags: tagArray,
+                type: 'project',
+                dateCreated: new Date().toISOString() 
+            });
+            closeModal('new-project-modal');
+            loadWorkspace(currentWorkspace);
+        }
+
+        async function saveIdea() {
+            const text = document.getElementById('idea-text').value;
+            if(!text) return;
+
+            // Detectar hashtags en el texto automáticamente
+            const hashtags = text.match(/#[a-záéíóúñ0-9_]+/gi) || [];
+
+            await db.projects.add({ 
+                title: text, 
+                workspace: 'ideas', // Va directo a la bandeja de ideas
+                tags: hashtags,
+                type: 'idea',
+                dateCreated: new Date().toISOString() 
+            });
+            
+            closeModal('quick-idea-modal');
+            document.getElementById('idea-text').value = '';
+            
+            // Si estábamos en la vista de ideas, recargar. Si no, avisar que se guardó.
+            if(currentWorkspace === 'ideas') loadWorkspace('ideas');
+            else alert("Idea archivada en tu Caja de Ideas.");
+        }
+
+        // ==========================================
+        // UTILIDADES
+        // ==========================================
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function openIdeaModal() { openModal('quick-idea-modal'); document.getElementById('idea-text').focus(); }
+        
+        async function deleteItem(event, id) {
             event.stopPropagation();
-            if(confirm("¿Eliminar este proyecto de forma permanente?")) {
+            if(confirm("¿Eliminar este elemento permanentemente?")) {
                 await db.projects.delete(id);
-                // Opcional: También borrar las referencias ligadas a ese proyecto para no saturar memoria
-                await db.references.where('projectId').equals(id).delete();
-                loadProjects();
+                loadWorkspace(currentWorkspace);
             }
         }
     </script>
