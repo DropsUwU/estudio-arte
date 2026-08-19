@@ -1,0 +1,17 @@
+{
+  "name": "Estudio de Arte",
+  "short_name": "Estudio",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#2E2E2E",
+  "theme_color": "#2E2E2E",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icono.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
