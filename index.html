@@ -8,36 +8,42 @@
     <link rel="manifest" href="manifest.json">
     <title>Estudio de Arte</title>
 
-    <!-- 1. DEFINICIÓN DE VARIABLES CSS (Temas Visuales) -->
     <style>
-        /* TEMA POR DEFECTO: Gris Neutro 18% */
+        /* TEMAS ANTERIORES */
         :root {
-            --bg-color: #2E2E2E;
-            --panel-color: #3A3A3A;
-            --text-color: #E0E0E0;
-            --text-muted: #9CA3AF;
-            --accent-color: #60A5FA;
-            --border-color: rgba(255, 255, 255, 0.1);
+            --bg-color: #2E2E2E; --panel-color: #3A3A3A; --text-color: #E0E0E0; --text-muted: #9CA3AF; --accent-color: #60A5FA; --border-color: rgba(255, 255, 255, 0.1);
         }
-
-        /* TEMA LUZ CÁLIDA (3200K): Ideal para reducir fatiga visual nocturna */
         .theme-warm {
-            --bg-color: #2A2624;
-            --panel-color: #36302D;
-            --text-color: #E7E5E4;
-            --text-muted: #A8A29E;
-            --accent-color: #F59E0B; /* Ámbar */
-            --border-color: rgba(255, 255, 255, 0.08);
+            --bg-color: #2A2624; --panel-color: #36302D; --text-color: #E7E5E4; --text-muted: #A8A29E; --accent-color: #F59E0B; --border-color: rgba(255, 255, 255, 0.08);
+        }
+        .theme-daylight {
+            --bg-color: #E5E7EB; --panel-color: #F3F4F6; --text-color: #1F2937; --text-muted: #4B5563; --accent-color: #2563EB; --border-color: rgba(0, 0, 0, 0.1);
         }
 
-        /* TEMA LUZ DE DÍA (5500K): Simula estudio de día. Textos oscuros */
-        .theme-daylight {
-            --bg-color: #E5E7EB;
-            --panel-color: #F3F4F6;
-            --text-color: #1F2937;
-            --text-muted: #4B5563;
-            --accent-color: #2563EB; /* Azul intenso */
-            --border-color: rgba(0, 0, 0, 0.1);
+        /* NUEVO: TEMA FRUTIGER AERO (Aero Glass) */
+        .theme-frutiger {
+            /* Fondo azul cielo sutil (Aurora) */
+            --bg-color: #E0F2FE; 
+            /* Texto azul profundo marino */
+            --text-color: #082F49;
+            --text-muted: #0284C7;
+            --accent-color: #0EA5E9;
+            --border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* MOTOR DE EFECTO CRISTAL (Solo se activa con Frutiger Aero) */
+        .theme-frutiger body {
+            background: radial-gradient(circle at 50% -20%, #F0F9FF 0%, #BAE6FD 100%);
+        }
+        .theme-frutiger .bg-studio-panel {
+            /* Degradado de cristal (más brillante arriba, transparente abajo) */
+            background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.3) 100%) !important;
+            /* Efecto esmerilado nativo de Apple */
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            /* Sombra interna blanca (borde brillante) y sombra suave oscura (profundidad 3D) */
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -1px 2px rgba(255,255,255,0.3), 0 8px 32px rgba(2, 132, 199, 0.15) !important;
+            border: 1px solid rgba(255,255,255,0.5) !important;
         }
 
         /* Ergonomía táctil para iPad */
@@ -48,7 +54,7 @@
             user-select: none;
             background-color: var(--bg-color);
             color: var(--text-color);
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: background-color 0.5s ease, color 0.3s ease;
         }
         
         .safe-pt { padding-top: env(safe-area-inset-top, 20px); }
@@ -58,7 +64,6 @@
         ::-webkit-scrollbar { display: none; }
     </style>
 
-    <!-- Tailwind CSS configurado para leer nuestras variables CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -76,16 +81,14 @@
             }
         }
     </script>
-
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
 </head>
 
-<!-- El ID 'app-container' permite invertir el layout para zurdos con flex-row-reverse -->
 <body id="app-container" class="h-screen w-screen overflow-hidden flex font-sans">
 
     <!-- BARRA DE NAVEGACIÓN -->
-    <nav class="bg-studio-panel w-20 flex flex-col items-center py-6 safe-pt safe-pb shadow-[4px_0_15px_rgba(0,0,0,0.2)] z-20 transition-colors duration-300">
+    <nav class="bg-studio-panel w-20 flex flex-col items-center py-6 safe-pt safe-pb shadow-lg z-20 transition-all duration-300">
         <button class="mb-10 p-3 rounded-2xl bg-studio-bg shadow-inner text-studio-accent transition-transform active:scale-95">
             <i class="ph ph-paint-brush-broad text-2xl"></i>
         </button>
@@ -94,8 +97,6 @@
                 <i class="ph ph-folders text-2xl text-studio-accent"></i>
             </button>
         </div>
-        
-        <!-- NUEVO: Botón de Configuración -->
         <div class="mt-auto flex flex-col gap-4">
             <button onclick="openSettings()" class="p-3 rounded-xl hover:bg-studio-bg/30 transition-colors" title="Preferencias">
                 <i class="ph ph-gear text-2xl text-studio-muted"></i>
@@ -115,7 +116,7 @@
     </main>
 
     <!-- MODAL: NUEVO PROYECTO -->
-    <div id="new-project-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div id="new-project-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center">
         <div class="bg-studio-panel w-[500px] rounded-3xl p-8 shadow-2xl border border-studio-border">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-light">Nueva Obra</h2>
@@ -145,7 +146,7 @@
     </div>
 
     <!-- MODAL: PREFERENCIAS DEL ESTUDIO -->
-    <div id="settings-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center">
         <div class="bg-studio-panel w-[500px] rounded-3xl p-8 shadow-2xl border border-studio-border">
             <div class="flex justify-between items-center mb-8">
                 <h2 class="text-2xl font-light">Preferencias del Estudio</h2>
@@ -154,12 +155,10 @@
                 </button>
             </div>
             
-            <div class="flex flex-col gap-8">
+            <div class="flex flex-col gap-6">
                 <!-- Ergonomía -->
                 <div>
-                    <h3 class="text-lg font-medium mb-4 flex items-center gap-2">
-                        <i class="ph ph-hand-pointing"></i> Ergonomía de Dibujo
-                    </h3>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-studio-muted mb-3">Ergonomía</h3>
                     <div class="flex gap-4">
                         <label class="flex-1 flex items-center justify-center gap-2 p-4 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
                             <input type="radio" name="ergonomics" value="right" class="accent-studio-accent" checked>
@@ -174,35 +173,29 @@
 
                 <!-- Iluminación / Temas -->
                 <div>
-                    <h3 class="text-lg font-medium mb-4 flex items-center gap-2">
-                        <i class="ph ph-lightbulb"></i> Iluminación de Interfaz
-                    </h3>
-                    <div class="flex flex-col gap-3">
-                        <label class="flex items-center gap-3 p-4 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-studio-muted mb-3">Entorno Visual</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 p-3 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
                             <input type="radio" name="theme" value="neutral" class="accent-studio-accent" checked>
-                            <div class="flex-1">
-                                <p class="font-medium">Gris Neutro 18%</p>
-                                <p class="text-sm text-studio-muted">Estándar. Sin alteración de color.</p>
-                            </div>
+                            <span class="text-sm font-medium">Gris Neutro</span>
                         </label>
-                        <label class="flex items-center gap-3 p-4 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
+                        <label class="flex items-center gap-2 p-3 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
                             <input type="radio" name="theme" value="daylight" class="accent-studio-accent">
-                            <div class="flex-1">
-                                <p class="font-medium">Luz de Día</p>
-                                <p class="text-sm text-studio-muted">Gris claro para ambientes luminosos.</p>
-                            </div>
+                            <span class="text-sm font-medium">Luz de Día</span>
                         </label>
-                        <label class="flex items-center gap-3 p-4 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
+                        <label class="flex items-center gap-2 p-3 border border-studio-border rounded-xl cursor-pointer hover:border-studio-accent transition-colors">
                             <input type="radio" name="theme" value="warm" class="accent-studio-accent">
-                            <div class="flex-1">
-                                <p class="font-medium">Luz Cálida</p>
-                                <p class="text-sm text-studio-muted">Tonos ámbar para reducir fatiga visual.</p>
-                            </div>
+                            <span class="text-sm font-medium">Luz Cálida</span>
+                        </label>
+                        <!-- NUEVA OPCIÓN: FRUTIGER AERO -->
+                        <label class="flex items-center gap-2 p-3 border border-studio-accent rounded-xl cursor-pointer hover:bg-white/10 transition-colors bg-gradient-to-br from-blue-100/20 to-transparent">
+                            <input type="radio" name="theme" value="frutiger" class="accent-studio-accent">
+                            <span class="text-sm font-medium text-blue-500">Aero Glass ✨</span>
                         </label>
                     </div>
                 </div>
                 
-                <button onclick="applyAndSaveSettings()" class="mt-2 bg-studio-accent text-white font-bold rounded-xl p-4 transition-colors active:scale-95 shadow-lg">
+                <button onclick="applyAndSaveSettings()" class="mt-4 bg-studio-accent text-white font-bold rounded-xl p-4 transition-colors active:scale-95 shadow-lg">
                     Aplicar Cambios
                 </button>
             </div>
@@ -218,37 +211,30 @@
             sketches: '++id, projectId, canvasData'
         });
 
-        // INICIALIZACIÓN
         window.addEventListener('DOMContentLoaded', () => {
-            loadPreferences(); // Carga temas antes de pintar la pantalla
+            loadPreferences();
             loadProjects();
         });
 
-        // LÓGICA DE PREFERENCIAS (LocalStorage)
         function loadPreferences() {
-            // Leer datos del iPad. Si no hay, usar valores por defecto.
             const savedTheme = localStorage.getItem('studioTheme') || 'neutral';
             const isLeftHanded = localStorage.getItem('isLeftHanded') === 'true';
 
             applyThemeVisuals(savedTheme, isLeftHanded);
             
-            // Sincronizar los botones (radios) del menú con la configuración guardada
             document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
             document.querySelector(`input[name="ergonomics"][value="${isLeftHanded ? 'left' : 'right'}"]`).checked = true;
         }
 
         function applyThemeVisuals(theme, isLeftHanded) {
-            // 1. Aplicar Tema (Variables CSS)
-            document.documentElement.className = ''; // Limpiar temas previos
+            document.documentElement.className = '';
             if (theme !== 'neutral') {
                 document.documentElement.classList.add(`theme-${theme}`);
             }
 
-            // 2. Aplicar Ergonomía (Invierte el layout principal Flexbox)
             const appContainer = document.getElementById('app-container');
             if (isLeftHanded) {
                 appContainer.classList.add('flex-row-reverse');
-                // Ajustar áreas seguras para que el notch de Apple no estorbe al invertir
                 document.querySelector('nav').classList.replace('safe-pl', 'safe-pr');
             } else {
                 appContainer.classList.remove('flex-row-reverse');
@@ -257,35 +243,26 @@
         }
 
         function applyAndSaveSettings() {
-            // Leer los valores seleccionados en el modal
             const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
             const isLeftHanded = document.querySelector('input[name="ergonomics"]:checked').value === 'left';
 
-            // Guardar en la memoria del dispositivo
             localStorage.setItem('studioTheme', selectedTheme);
             localStorage.setItem('isLeftHanded', isLeftHanded);
 
-            // Aplicar cambios y cerrar ventana
             applyThemeVisuals(selectedTheme, isLeftHanded);
             closeModal('settings-modal');
         }
 
-        // LÓGICA DE INTERFAZ GENERAL
-        function openSettings() {
-            document.getElementById('settings-modal').classList.remove('hidden');
-        }
-
+        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
         function openModal(modalId) {
             document.getElementById(modalId).classList.remove('hidden');
             if(modalId === 'new-project-modal') document.getElementById('proj-title').focus();
         }
-
         function closeModal(modalId) {
             document.getElementById(modalId).classList.add('hidden');
             if(modalId === 'new-project-modal') document.getElementById('new-project-form').reset();
         }
 
-        // LÓGICA DE PROYECTOS (Mantenida del paso anterior)
         async function saveProject(event) {
             event.preventDefault();
             await db.projects.add({
@@ -302,7 +279,7 @@
             const grid = document.getElementById('projects-grid');
             
             grid.innerHTML = `
-                <button class="border-2 border-dashed border-studio-muted rounded-3xl h-56 flex flex-col items-center justify-center hover:bg-studio-panel transition-colors hover:border-studio-accent group" onclick="openModal('new-project-modal')">
+                <button class="bg-studio-panel border-2 border-dashed border-studio-border rounded-3xl h-56 flex flex-col items-center justify-center hover:border-studio-accent transition-all group" onclick="openModal('new-project-modal')">
                     <div class="bg-studio-bg p-4 rounded-full mb-4 shadow-inner transition-colors">
                         <i class="ph ph-plus text-3xl text-studio-muted group-hover:text-studio-accent"></i>
                     </div>
