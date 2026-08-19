@@ -4,291 +4,217 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Estudio de Arte Espacial</title>
+    <title>Estudio Espacial</title>
 
     <style>
-        :root { --bg-color: #2E2E2E; --panel-color: #3A3A3A; --text-color: #E0E0E0; --text-muted: #9CA3AF; --accent-color: #60A5FA; --border-color: rgba(255, 255, 255, 0.1); }
-        body { overscroll-behavior: none; touch-action: pan-y; -webkit-user-select: none; user-select: none; background-color: var(--bg-color); color: var(--text-color); }
-        .safe-pt { padding-top: env(safe-area-inset-top, 20px); } .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); } .safe-pl { padding-left: env(safe-area-inset-left, 20px); }
-        ::-webkit-scrollbar { display: none; }
+        /* Variables reactivas al Drag and Drop */
+        :root { 
+            --bg-color: #2E2E2E; 
+            --panel-color: #3A3A3A; 
+            --text-color: #E0E0E0; 
+            --accent-color: #60A5FA; 
+            --border-color: rgba(255, 255, 255, 0.1); 
+        }
         
-        /* Animaciones para fluidez */
-        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { 
+            overscroll-behavior: none; 
+            touch-action: none; /* Bloqueo estricto para permitir el motor espacial */
+            -webkit-user-select: none; 
+            user-select: none; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            transition: background-color 0.4s ease;
+        }
+
+        .safe-pt { padding-top: env(safe-area-inset-top, 20px); } 
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); } 
+        
+        /* Clase vital para el elemento que viaja con el dedo/lápiz */
+        .dragging-node {
+            position: fixed;
+            pointer-events: none; /* Permite calcular qué hay DEBAJO de la esfera */
+            z-index: 9999;
+            transform: translate(-50%, -50%) scale(1.2);
+            transition: transform 0.1s;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        /* Feedback visual al pasar un color por encima */
+        .paint-hover {
+            filter: brightness(1.3);
+            outline: 2px dashed var(--accent-color);
+        }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = { theme: { extend: { colors: { 'studio-bg': 'var(--bg-color)', 'studio-panel': 'var(--panel-color)', 'studio-text': 'var(--text-color)', 'studio-muted': 'var(--text-muted)', 'studio-accent': 'var(--accent-color)', 'studio-border': 'var(--border-color)' } } } }
+        tailwind.config = { theme: { extend: { colors: { 'studio-bg': 'var(--bg-color)', 'studio-panel': 'var(--panel-color)', 'studio-text': 'var(--text-color)', 'studio-accent': 'var(--accent-color)', 'studio-border': 'var(--border-color)' } } } }
     </script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
 </head>
 
-<body id="app-container" class="h-screen w-screen overflow-hidden flex font-sans">
+<body class="h-screen w-screen overflow-hidden flex font-sans" id="app-body">
 
-    <!-- BARRA LATERAL DINÁMICA -->
-    <nav class="bg-studio-panel w-24 flex flex-col items-center py-6 safe-pt safe-pb shadow-2xl z-20 relative">
-        <div class="mb-8 p-3 rounded-2xl bg-studio-bg shadow-inner text-studio-accent">
+    <!-- ÁREA 1: BARRA LATERAL (Data Target: Panel) -->
+    <nav data-paint-target="panel" class="bg-studio-panel w-24 flex flex-col items-center py-6 safe-pt safe-pb shadow-2xl z-20 border-r border-studio-border transition-colors duration-500">
+        <div data-paint-target="accent" class="mb-8 p-3 rounded-2xl bg-studio-bg shadow-inner text-studio-accent transition-colors duration-500">
             <i class="ph ph-paint-brush-broad text-2xl"></i>
         </div>
         
-        <!-- Lista de Espacios inyectada por JS -->
-        <div id="workspace-list" class="flex flex-col gap-4 w-full items-center overflow-y-auto"></div>
-
-        <!-- Botón para crear un nuevo espacio desde cero -->
-        <button onclick="openSpaceModal()" class="mt-4 p-3 rounded-xl border border-dashed border-studio-muted text-studio-muted hover:border-studio-accent hover:text-studio-accent transition-colors" title="Crear Nuevo Espacio">
-            <i class="ph ph-plus text-xl"></i>
-        </button>
-    </nav>
-
-    <!-- ÁREA PRINCIPAL -->
-    <main class="flex-1 relative h-full safe-pt safe-pb overflow-y-auto px-12" id="main-view">
-        
-        <!-- ESTADO VACÍO (Cuando no hay espacios creados) -->
-        <div id="empty-state" class="hidden h-full flex flex-col items-center justify-center text-center fade-in">
-            <i class="ph ph-planet text-6xl text-studio-muted mb-6"></i>
-            <h1 class="text-3xl font-light mb-2">Tu estudio está vacío</h1>
-            <p class="text-studio-muted max-w-md mb-8">Construye tu primer espacio de trabajo. Puedes crear un espacio para tus óleos, otro para bocetos rápidos, o uno por cada cliente.</p>
-            <button onclick="openSpaceModal()" class="bg-studio-accent text-white px-8 py-4 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
-                Construir mi primer Espacio
+        <div class="mt-auto flex flex-col gap-4">
+            <!-- Botón para abrir el Laboratorio de Color -->
+            <button onclick="toggleColorLab()" class="p-3 rounded-xl hover:bg-studio-bg text-studio-text transition-colors">
+                <i class="ph ph-palette text-2xl"></i>
             </button>
         </div>
+    </nav>
 
-        <!-- CONTENIDO DEL ESPACIO ACTIVO -->
-        <div id="active-workspace-view" class="hidden h-full flex flex-col py-10 fade-in">
-            <header class="mb-10 flex justify-between items-end border-b border-studio-border pb-6">
-                <div>
-                    <h1 id="active-space-title" class="text-5xl font-light mb-2 flex items-center gap-3">
-                        <i id="active-space-icon" class="ph ph-folder"></i>
-                        <span>Título del Espacio</span>
-                    </h1>
-                </div>
-                
-                <div class="flex gap-3">
-                    <button onclick="openTagManager()" class="px-5 py-2 bg-studio-panel rounded-xl border border-studio-border text-studio-text hover:bg-studio-bg flex items-center gap-2 transition-colors">
-                        <i class="ph ph-palette"></i> Mis Etiquetas
-                    </button>
-                </div>
-            </header>
-
-            <!-- Cuadrícula de proyectos -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="projects-grid"></div>
-        </div>
-    </main>
-
-    <!-- MODAL: TUTORIAL DE ONBOARDING -->
-    <div id="tutorial-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center fade-in">
-        <div class="bg-studio-panel w-[600px] rounded-3xl overflow-hidden shadow-2xl border border-studio-border">
-            <div class="p-10 text-center">
-                <div class="w-20 h-20 bg-studio-bg rounded-full flex items-center justify-center mx-auto mb-6 text-studio-accent shadow-inner">
-                    <i class="ph ph-sparkle text-4xl"></i>
-                </div>
-                <h2 class="text-3xl font-light mb-4">Bienvenida a tu Estudio</h2>
-                <p class="text-studio-muted text-lg mb-8">Esta herramienta se adapta a ti, no al revés. Aquí no hay estructuras predefinidas. Tú creas las paredes, nombras los espacios y decides cómo organizar tu arte.</p>
-                
-                <div class="grid grid-cols-2 gap-4 text-left mb-8">
-                    <div class="bg-studio-bg p-4 rounded-xl border border-studio-border">
-                        <i class="ph ph-squares-four text-studio-accent text-2xl mb-2"></i>
-                        <h3 class="font-bold mb-1">1. Crea Espacios</h3>
-                        <p class="text-sm text-studio-muted">Organiza por cliente, técnica o estado de ánimo.</p>
-                    </div>
-                    <div class="bg-studio-bg p-4 rounded-xl border border-studio-border">
-                        <i class="ph ph-tag text-studio-accent text-2xl mb-2"></i>
-                        <h3 class="font-bold mb-1">2. Etiquetas Visuales</h3>
-                        <p class="text-sm text-studio-muted">Clasifica tus obras con colores, sin teclear textos largos.</p>
-                    </div>
-                </div>
-
-                <button onclick="finishTutorial()" class="w-full bg-studio-accent text-white font-bold rounded-xl p-4 active:scale-95 transition-transform text-lg">
-                    Comenzar desde Cero
-                </button>
+    <!-- ÁREA 2: LIENZO PRINCIPAL (Data Target: Fondo) -->
+    <main data-paint-target="background" class="flex-1 relative h-full safe-pt safe-pb overflow-y-auto px-12 transition-colors duration-500">
+        
+        <div class="h-full flex flex-col justify-center items-center">
+            <h1 class="text-4xl font-light mb-4 text-studio-text">Arrastra y Suelta</h1>
+            <p class="text-gray-400 max-w-md text-center">Abre el panel de color (abajo a la izquierda). Arrastra una esfera hacia el fondo para cambiar la pared, hacia la barra lateral para cambiar los paneles, o hacia un botón para cambiar los acentos.</p>
+            
+            <!-- Ejemplo de panel interno (Data Target: Panel) -->
+            <div data-paint-target="panel" class="mt-12 bg-studio-panel w-96 h-64 rounded-3xl shadow-xl flex items-center justify-center border border-studio-border transition-colors duration-500">
+                <button data-paint-target="accent" class="bg-studio-accent px-6 py-3 rounded-xl text-white font-bold transition-colors duration-500">Botón de Acento</button>
             </div>
         </div>
-    </div>
 
-    <!-- MODAL: CREAR ESPACIO DE TRABAJO -->
-    <div id="new-space-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-studio-panel w-[400px] rounded-3xl p-8 border border-studio-border shadow-2xl">
-            <h2 class="text-2xl font-light mb-6">Nuevo Espacio</h2>
-            <form onsubmit="saveSpace(event)" class="flex flex-col gap-5">
-                <div>
-                    <label class="block text-sm text-studio-muted mb-2">Nombre del Espacio</label>
-                    <input type="text" id="space-name" required class="w-full bg-studio-bg border border-studio-border rounded-xl p-4 focus:border-studio-accent outline-none text-white" placeholder="Ej: Bocetos a Lápiz">
-                </div>
-                <div>
-                    <label class="block text-sm text-studio-muted mb-2">Ícono (Selecciona uno)</label>
-                    <div class="flex gap-2 justify-between" id="icon-selector">
-                        <!-- Generados por JS -->
-                    </div>
-                    <input type="hidden" id="space-icon" value="ph-folder">
-                </div>
-                <button type="submit" class="mt-4 bg-studio-accent text-white font-bold rounded-xl p-4 active:scale-95">Construir Espacio</button>
-            </form>
+    </main>
+
+    <!-- VENTANA FLOTANTE: LABORATORIO DE COLOR (Milanote Style) -->
+    <div id="color-lab" class="hidden fixed bottom-10 left-32 bg-studio-panel p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-studio-border z-50">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-sm tracking-widest uppercase">Laboratorio Visual</h3>
+            <i class="ph ph-arrows-out-cardinal text-gray-400 cursor-move" title="Pronto haremos esta ventana movible también"></i>
+        </div>
+        
+        <!-- Esferas de Color (Draggables nativos desactivados, usamos PointerEvents) -->
+        <div class="flex gap-4" id="color-palette">
+            <!-- Tonos neutros/oscuros (Ideales para fondos) -->
+            <div class="w-10 h-10 rounded-full cursor-grab shadow-inner color-sphere" style="background-color: #1A1A1A;" data-color="#1A1A1A" data-type="dark"></div>
+            <div class="w-10 h-10 rounded-full cursor-grab shadow-inner color-sphere" style="background-color: #36302D;" data-color="#36302D" data-type="dark"></div>
+            
+            <!-- Tonos claros (Ideales para paneles/luz) -->
+            <div class="w-10 h-10 rounded-full cursor-grab shadow-inner border border-gray-500 color-sphere" style="background-color: #E5E7EB;" data-color="#E5E7EB" data-type="light"></div>
+            
+            <!-- Tonos vibrantes (Ideales para acentos) -->
+            <div class="w-10 h-10 rounded-full cursor-grab shadow-inner color-sphere" style="background-color: #F59E0B;" data-color="#F59E0B" data-type="accent"></div>
+            <div class="w-10 h-10 rounded-full cursor-grab shadow-inner color-sphere" style="background-color: #10B981;" data-color="#10B981" data-type="accent"></div>
+            <div class="w-10 h-10 rounded-full cursor-grab shadow-inner color-sphere" style="background-color: #8B5CF6;" data-color="#8B5CF6" data-type="accent"></div>
         </div>
     </div>
 
+    <!-- MOTOR DE FÍSICAS (POINTER EVENTS) -->
     <script>
+        function toggleColorLab() {
+            const lab = document.getElementById('color-lab');
+            lab.classList.toggle('hidden');
+        }
+
         // ==========================================
-        // 1. BASE DE DATOS DINÁMICA (Cero predefinidos)
+        // MOTOR DRAG AND DROP ESPACIAL (Pencil / Touch)
         // ==========================================
-        const db = new Dexie("StudioArt_Dynamic"); // Nuevo nombre = Base de datos limpia
-        
-        db.version(1).stores({
-            workspaces: '++id, name, icon', 
-            tags: '++id, name, color',
-            projects: '++id, workspaceId, title, tagIds, dateCreated'
+        let activeSphere = null; // El elemento clonado que se mueve
+        let currentTarget = null; // El elemento UI sobre el que estamos flotando
+
+        const spheres = document.querySelectorAll('.color-sphere');
+
+        spheres.forEach(sphere => {
+            // pointerdown equivale a tocar la pantalla o hacer clic
+            sphere.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Evita comportamientos nativos de iOS
+                
+                // 1. Crear el clon visual que seguirá al dedo
+                activeSphere = sphere.cloneNode(true);
+                activeSphere.classList.add('dragging-node');
+                document.body.appendChild(activeSphere);
+
+                // 2. Moverlo inmediatamente a las coordenadas del toque
+                moveSphere(e.clientX, e.clientY);
+
+                // 3. Activar los listeners globales mientras se arrastra
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', onPointerUp);
+            });
         });
 
-        let currentWorkspaceId = null;
-
-        // Íconos disponibles para los espacios
-        const availableIcons = ['ph-folder', 'ph-palette', 'ph-scribble-loop', 'ph-coffee', 'ph-briefcase', 'ph-star'];
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            checkTutorial();
-            renderIconSelector();
-            await loadWorkspaces();
-        });
-
-        // ==========================================
-        // 2. LÓGICA DE ONBOARDING (TUTORIAL)
-        // ==========================================
-        function checkTutorial() {
-            if (!localStorage.getItem('tutorialSeen_v2')) {
-                document.getElementById('tutorial-modal').classList.remove('hidden');
+        function moveSphere(x, y) {
+            if(activeSphere) {
+                activeSphere.style.left = `${x}px`;
+                activeSphere.style.top = `${y}px`;
             }
         }
 
-        function finishTutorial() {
-            localStorage.setItem('tutorialSeen_v2', 'true');
-            document.getElementById('tutorial-modal').classList.add('hidden');
-        }
+        function onPointerMove(e) {
+            moveSphere(e.clientX, e.clientY);
 
-        // ==========================================
-        // 3. GESTIÓN DE ESPACIOS (Workspaces)
-        // ==========================================
-        function openSpaceModal() {
-            document.getElementById('new-space-modal').classList.remove('hidden');
-            document.getElementById('space-name').focus();
-        }
-
-        function renderIconSelector() {
-            const container = document.getElementById('icon-selector');
-            container.innerHTML = availableIcons.map(icon => `
-                <button type="button" onclick="selectIcon('${icon}')" id="btn-icon-${icon}" class="p-3 bg-studio-bg rounded-xl border border-studio-border hover:border-studio-accent text-xl text-studio-muted transition-colors">
-                    <i class="ph ${icon}"></i>
-                </button>
-            `).join('');
-            selectIcon('ph-folder'); // Default
-        }
-
-        function selectIcon(iconName) {
-            document.getElementById('space-icon').value = iconName;
-            availableIcons.forEach(ic => {
-                const btn = document.getElementById(`btn-icon-${ic}`);
-                if(ic === iconName) {
-                    btn.classList.add('border-studio-accent', 'text-studio-accent');
-                    btn.classList.remove('border-studio-border', 'text-studio-muted');
-                } else {
-                    btn.classList.remove('border-studio-accent', 'text-studio-accent');
-                    btn.classList.add('border-studio-border', 'text-studio-muted');
-                }
-            });
-        }
-
-        async function saveSpace(event) {
-            event.preventDefault();
-            const name = document.getElementById('space-name').value;
-            const icon = document.getElementById('space-icon').value;
+            // DETECCIÓN DE COLISIÓN (Hit Testing)
+            // ¿Qué elemento de la UI hay debajo de la coordenada exacta (x, y)?
+            const elementsUnderPointer = document.elementsFromPoint(e.clientX, e.clientY);
             
-            const newId = await db.workspaces.add({ name, icon });
-            
-            document.getElementById('new-space-modal').classList.add('hidden');
-            document.getElementById('space-name').value = '';
-            
-            await loadWorkspaces();
-            activateWorkspace(newId); // Entrar automáticamente al espacio recién creado
-        }
+            // Buscar el primer elemento que tenga el atributo 'data-paint-target'
+            const target = elementsUnderPointer.find(el => el.hasAttribute('data-paint-target'));
 
-        async function loadWorkspaces() {
-            const spaces = await db.workspaces.toArray();
-            const list = document.getElementById('workspace-list');
-            
-            // Lógica de visualización
-            if (spaces.length === 0) {
-                document.getElementById('empty-state').classList.remove('hidden');
-                document.getElementById('active-workspace-view').classList.add('hidden');
-                list.innerHTML = '';
-                return;
+            // Feedback visual (resaltar la zona)
+            if (currentTarget && currentTarget !== target) {
+                currentTarget.classList.remove('paint-hover');
             }
-
-            document.getElementById('empty-state').classList.add('hidden');
-            document.getElementById('active-workspace-view').classList.remove('hidden');
-
-            // Renderizar la barra lateral
-            list.innerHTML = spaces.map(space => `
-                <button onclick="activateWorkspace(${space.id})" id="nav-space-${space.id}" class="p-3 rounded-xl bg-studio-bg/50 text-studio-muted hover:text-white transition-all w-14 h-14 flex items-center justify-center relative group" title="${space.name}">
-                    <i class="ph ${space.icon} text-2xl"></i>
-                    <!-- Tooltip visual -->
-                    <span class="absolute left-16 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">${space.name}</span>
-                </button>
-            `).join('');
-
-            // Si no hay un espacio activo seleccionado, seleccionar el primero
-            if (!currentWorkspaceId && spaces.length > 0) {
-                activateWorkspace(spaces[0].id);
-            } else if (currentWorkspaceId) {
-                // Refrescar la UI del activo
-                activateWorkspace(currentWorkspaceId);
+            if (target) {
+                target.classList.add('paint-hover');
+                currentTarget = target;
+            } else {
+                currentTarget = null;
             }
         }
 
-        async function activateWorkspace(id) {
-            currentWorkspaceId = id;
-            const spaces = await db.workspaces.toArray();
-            const activeSpace = await db.workspaces.get(id);
-            
-            if(!activeSpace) return;
+        function onPointerUp(e) {
+            // Limpiar eventos globales
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
 
-            // Actualizar Cabecera
-            document.getElementById('active-space-title').innerHTML = `<i class="ph ${activeSpace.icon} text-studio-accent"></i> <span>${activeSpace.name}</span>`;
+            // Quitar el feedback visual
+            if(currentTarget) {
+                currentTarget.classList.remove('paint-hover');
+                
+                // APLICAR EL COLOR LÓGICAMENTE
+                const colorCode = activeSphere.dataset.color;
+                const targetType = currentTarget.getAttribute('data-paint-target');
+                
+                applyPaint(targetType, colorCode);
+                currentTarget = null;
+            }
 
-            // Actualizar estilos de la barra lateral
-            spaces.forEach(space => {
-                const btn = document.getElementById(`nav-space-${space.id}`);
-                if (btn) {
-                    if (space.id === id) {
-                        btn.classList.add('ring-2', 'ring-studio-accent', 'text-studio-accent');
-                        btn.classList.remove('text-studio-muted');
-                    } else {
-                        btn.classList.remove('ring-2', 'ring-studio-accent', 'text-studio-accent');
-                        btn.classList.add('text-studio-muted');
-                    }
-                }
-            });
-
-            // Aquí cargaremos los proyectos de este espacio en el siguiente paso
-            loadProjectsForActiveSpace();
-        }
-
-        async function loadProjectsForActiveSpace() {
-            const grid = document.getElementById('projects-grid');
-            grid.innerHTML = `
-                <button class="bg-studio-panel border-2 border-dashed border-studio-border rounded-3xl h-56 flex flex-col items-center justify-center hover:border-studio-accent transition-all group" onclick="alert('Programaremos el gestor visual de etiquetas en el siguiente bloque para crear el proyecto.')">
-                    <div class="bg-studio-bg p-4 rounded-full mb-4 text-studio-muted group-hover:text-studio-accent"><i class="ph ph-plus text-3xl"></i></div>
-                    <span class="text-studio-muted font-medium group-hover:text-studio-text">Nueva Obra</span>
-                </button>
-            `;
-            // Lógica de carga de proyectos pendiente de implementar tras construir el Gestor de Etiquetas.
+            // Destruir el clon flotante
+            if(activeSphere) {
+                activeSphere.remove();
+                activeSphere = null;
+            }
         }
 
         // ==========================================
-        // 4. PREPARACIÓN GESTOR DE ETIQUETAS VISUALES
+        // SISTEMA INTELIGENTE DE CONTRASTE
         // ==========================================
-        function openTagManager() {
-            alert("Siguiente paso: Módulo de Píldoras Visuales. Aquí crearemos etiquetas de colores (Ej: 🔴 Óleo, 🔵 Terminado) que se guardarán en tu estudio de forma permanente.");
+        function applyPaint(targetType, colorCode) {
+            const root = document.documentElement;
+
+            if (targetType === 'background') {
+                root.style.setProperty('--bg-color', colorCode);
+                // Si el fondo es muy claro, forzar texto oscuro para no romper legibilidad
+                if(colorCode === '#E5E7EB') root.style.setProperty('--text-color', '#111827');
+                else root.style.setProperty('--text-color', '#E0E0E0');
+            } 
+            else if (targetType === 'panel') {
+                root.style.setProperty('--panel-color', colorCode);
+            } 
+            else if (targetType === 'accent') {
+                root.style.setProperty('--accent-color', colorCode);
+            }
+
+            // Aquí agregaríamos la línea para guardarlo en localStorage 
+            // localStorage.setItem(`theme_${targetType}`, colorCode);
         }
     </script>
 </body>
