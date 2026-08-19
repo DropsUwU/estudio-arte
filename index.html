@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    
+    <!-- Optimizaciones estrictas para iPad y PWA -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2E2E2E">
+    <link rel="manifest" href="manifest.json">
+    
+    <title>Estudio de Arte</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'studio-bg': '#2E2E2E',
+                        'studio-panel': '#3A3A3A',
+                        'studio-text': '#E0E0E0',
+                        'studio-accent': '#60A5FA'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Phosphor Icons y Dexie.js -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+
+    <style>
+        body {
+            overscroll-behavior: none;
+            touch-action: pan-y;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .safe-pt { padding-top: env(safe-area-inset-top, 20px); }
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        .safe-pl { padding-left: env(safe-area-inset-left, 20px); }
+        .safe-pr { padding-right: env(safe-area-inset-right, 20px); }
+
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+
+<body class="bg-studio-bg text-studio-text h-screen w-screen overflow-hidden flex font-sans relative">
+
+    <!-- BARRA DE NAVEGACIÓN -->
+    <nav class="bg-studio-panel w-20 flex flex-col items-center py-6 safe-pt safe-pb safe-pl shadow-[4px_0_15px_rgba(0,0,0,0.3)] z-20">
+        <button class="mb-10 p-3 rounded-2xl bg-studio-bg shadow-inner text-studio-accent transition-transform active:scale-95">
+            <i class="ph ph-paint-brush-broad text-2xl"></i>
+        </button>
+        <div class="flex flex-col gap-6 w-full items-center">
+            <button class="p-3 rounded-xl bg-white/10 transition-colors" title="Proyectos">
+                <i class="ph ph-folders text-2xl text-white"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="flex-1 relative h-full safe-pt safe-pb safe-pr overflow-y-auto" id="main-view">
+        <div class="p-10 h-full flex flex-col">
+            <header class="mb-8">
+                <h1 class="text-4xl font-light mb-2">Proyectos</h1>
+                <p class="text-gray-400 text-sm">Almacenamiento local activo.</p>
+            </header>
+
+            <!-- Cuadrícula de Proyectos -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="projects-grid">
+                <!-- El botón de Nuevo Proyecto y las tarjetas se inyectarán desde JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <!-- VENTANA MODAL (Oculta por defecto con 'hidden') -->
+    <!-- UX: Fondo desenfocado (backdrop-blur) para concentrar la atención -->
+    <div id="new-project-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-studio-panel w-[500px] rounded-3xl p-8 shadow-2xl border border-white/10">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-light">Nueva Obra</h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="ph ph-x text-2xl"></i>
+                </button>
+            </div>
+            
+            <form id="new-project-form" onsubmit="saveProject(event)" class="flex flex-col gap-5">
+                <!-- Título -->
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Título del Proyecto</label>
+                    <input type="text" id="proj-title" required class="w-full bg-studio-bg border border-gray-600 rounded-xl p-4 text-white focus:outline-none focus:border-studio-accent transition-colors" placeholder="Ej. Retrato en azul">
+                </div>
+                
+                <!-- Técnica / Categoría -->
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Técnica</label>
+                    <select id="proj-category" class="w-full bg-studio-bg border border-gray-600 rounded-xl p-4 text-white focus:outline-none focus:border-studio-accent appearance-none">
+                        <option value="Óleo">Óleo</option>
+                        <option value="Acrílico">Acrílico</option>
+                        <option value="Acuarela">Acuarela</option>
+                        <option value="Grafito / Carbón">Grafito / Carbón</option>
+                        <option value="Escultura">Escultura</option>
+                        <option value="Técnica Mixta">Técnica Mixta</option>
+                    </select>
+                </div>
+                
+                <!-- Botón Guardar -->
+                <button type="submit" class="mt-4 bg-studio-accent text-studio-bg font-bold rounded-xl p-4 hover:bg-blue-400 transition-colors active:scale-95">
+                    Crear Proyecto
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA -->
+    <script>
+        // 1. BASE DE DATOS
+        const db = new Dexie("StudioArtDB");
+        db.version(1).stores({
+            projects: '++id, title, category, dateCreated',
+            references: '++id, projectId, imageBlob',
+            sketches: '++id, projectId, canvasData'
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+        }
+
+        // 2. LÓGICA DEL GESTOR DE PROYECTOS
+        
+        // Carga los proyectos apenas se abre la app
+        window.addEventListener('DOMContentLoaded', loadProjects);
+
+        function openModal() {
+            document.getElementById('new-project-modal').classList.remove('hidden');
+            document.getElementById('proj-title').focus(); // UX: Pone el cursor directo en el título
+        }
+
+        function closeModal() {
+            document.getElementById('new-project-modal').classList.add('hidden');
+            document.getElementById('new-project-form').reset(); // Limpia el formulario
+        }
+
+        // Guarda el proyecto en la base de datos
+        async function saveProject(event) {
+            event.preventDefault(); // Evita que la página intente recargarse
+            
+            const title = document.getElementById('proj-title').value;
+            const category = document.getElementById('proj-category').value;
+            
+            await db.projects.add({
+                title: title,
+                category: category,
+                dateCreated: new Date().toISOString()
+            });
+
+            closeModal();
+            loadProjects(); // Actualiza la pantalla inmediatamente
+        }
+
+        // Dibuja los proyectos en la pantalla
+        async function loadProjects() {
+            const projects = await db.projects.toArray(); // Trae todos los proyectos de Dexie
+            const grid = document.getElementById('projects-grid');
+            
+            // Inyectamos primero el botón de "Crear Nuevo"
+            grid.innerHTML = `
+                <button class="border-2 border-dashed border-gray-500 rounded-3xl h-56 flex flex-col items-center justify-center hover:bg-studio-panel transition-colors hover:border-studio-accent group" onclick="openModal()">
+                    <div class="bg-gray-700/50 p-4 rounded-full mb-4 group-hover:bg-studio-accent/20 transition-colors">
+                        <i class="ph ph-plus text-3xl text-gray-400 group-hover:text-studio-accent"></i>
+                    </div>
+                    <span class="text-gray-400 font-medium group-hover:text-studio-text">Nuevo Proyecto</span>
+                </button>
+            `;
+
+            // Dibujamos una tarjeta por cada proyecto guardado
+            // UX: Las tarjetas tienen las esquinas redondeadas y colores sutiles para no distraer.
+            projects.forEach(project => {
+                const date = new Date(project.dateCreated).toLocaleDateString('es-ES');
+                grid.innerHTML += `
+                    <div class="bg-studio-panel rounded-3xl h-56 p-6 flex flex-col hover:ring-2 ring-studio-accent cursor-pointer transition-all shadow-lg group" onclick="openProject(${project.id})">
+                        <div class="flex justify-between items-start mb-auto">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-studio-accent bg-studio-accent/10 px-3 py-1 rounded-full">${project.category}</span>
+                            <button class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" onclick="deleteProject(event, ${project.id})">
+                                <i class="ph ph-trash text-xl"></i>
+                            </button>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-medium text-white mb-1 truncate">${project.title}</h2>
+                            <p class="text-gray-400 text-sm">Creado: ${date}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Lógica temporal para borrar proyectos (para que puedas probar libremente)
+        async function deleteProject(event, id) {
+            event.stopPropagation(); // Evita que al tocar la papelera se abra el proyecto
+            if(confirm("¿Eliminar este proyecto de forma permanente?")) {
+                await db.projects.delete(id);
+                loadProjects();
+            }
+        }
+
+        function openProject(id) {
+            alert("En el siguiente paso entraremos al interior del proyecto ID: " + id + " para ver las referencias y bocetos.");
+        }
+    </script>
+</body>
+</html>
